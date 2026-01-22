@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #fafafa;
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #111;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            padding: 0 0 40px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: #000;
+            margin-bottom: 8px;
+            font-size: 2em;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 1em;
+            font-weight: 400;
+        }
+
+        .controls {
+            margin-bottom: 40px;
+        }
+
+        .upload-section {
+            margin-bottom: 24px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .file-input-button {
+            background: #000;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 4px;
+            display: inline-block;
+            font-weight: 500;
+            font-size: 0.9em;
+            transition: background 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+
+        .file-input-button:hover {
+            background: #333;
+        }
+
+        .file-input-wrapper:hover .file-input-button {
+            background: #333;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 180px;
+            max-width: 220px;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #666;
+            font-weight: 500;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        select, input[type="text"], input[type="date"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95em;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #000;
+        }
+
+        .stats {
+            padding: 30px 0;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #eee;
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 24px;
+        }
+
+        .stat-card {
+            text-align: left;
+            position: relative;
+            padding-left: 16px;
+        }
+
+        .stat-indicator {
+            position: absolute;
+            left: 0;
+            top: 4px;
+            width: 4px;
+            height: calc(100% - 8px);
+            border-radius: 2px;
+        }
+
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #000;
+            letter-spacing: -1px;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-container {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 40px;
+            display: none;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .chart-wrapper canvas {
+            cursor: default;
+        }
+
+        .aq-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .aq-chart-header h3 {
+            font-size: 1em;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .aq-chart-header select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9em;
+            background: #fff;
+            min-width: 200px;
+        }
+
+        .aq-legend {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .aq-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .aq-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        @media (max-width: 768px) {
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+
+        .data-container {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #000;
+            color: #fff;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.95em;
+        }
+
+        tr:hover {
+            background-color: #f8f8f8;
+        }
+
+        /* Air quality color indicators */
+        .aq-good {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .aq-moderate {
+            background-color: #fef9c3;
+            color: #854d0e;
+        }
+
+        .aq-poor {
+            background-color: #fed7aa;
+            color: #9a3412;
+        }
+
+        .aq-bad {
+            background-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .aq-severe {
+            background-color: #e9d5ff;
+            color: #6b21a8;
+        }
+
+        /* Reference section */
+        .reference-section {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid #eee;
+        }
+
+        .reference-section h2 {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #000;
+        }
+
+        .reference-intro {
+            color: #666;
+            font-size: 0.95em;
+            margin-bottom: 24px;
+        }
+
+        .threshold-tables {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 24px;
+        }
+
+        .threshold-table {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .threshold-table h3 {
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #000;
+        }
+
+        .threshold-table table {
+            width: 100%;
+            border: none;
+        }
+
+        .threshold-table td {
+            padding: 6px 10px;
+            font-size: 0.85em;
+            border: none;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .threshold-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .threshold-table td:first-child {
+            font-weight: 500;
+            border-radius: 4px;
+        }
+
+        .threshold-table td:last-child {
+            text-align: right;
+            color: #666;
+        }
+
+        .threshold-table .source {
+            margin-top: 12px;
+            font-size: 0.75em;
+            color: #999;
+            font-style: italic;
+        }
+
+        .reference-footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+
+        .reference-footer p {
+            font-size: 0.85em;
+            color: #888;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #888;
+            font-size: 1em;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px;
+            color: #888;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #888;
+        }
+
+        .empty-state h3 {
+            font-size: 1.3em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 0.95em;
+            color: #999;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            background: #fff;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95em;
+            transition: all 0.2s;
+            font-family: inherit;
+            height: 42px;
+            box-sizing: border-box;
+        }
+
+        .btn:hover {
+            background: #f5f5f5;
+            border-color: #ccc;
+        }
+
+        .btn-primary {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #333;
+        }
+
+        .preset-filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            color: #666;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .preset-btn:hover {
+            background: #f5f5f5;
+            border-color: #000;
+            color: #000;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: #fff;
+            color: #000;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
+
+        .pagination button:disabled {
+            background: #f5f5f5;
+            color: #ccc;
+            border-color: #eee;
+            cursor: not-allowed;
+        }
+
+        .pagination button:focus {
+            outline: 2px solid #000;
+            outline-offset: 2px;
+        }
+
+        .pagination span {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* Keyboard navigation styles */
+        button:focus,
+        input:focus,
+        select:focus {
+            outline: 2px solid #000;
+            outline-offset: 2px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .header {
+                padding-bottom: 24px;
+                margin-bottom: 24px;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                width: 100%;
+                max-width: none;
+            }
+
+            table {
+                font-size: 0.85em;
+            }
+
+            th, td {
+                padding: 10px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Air Quality Dashboard</h1>
+            <p class="">for Qingping Air Monitor 2</p>
+        </div>
+
+        <div class="controls">
+            <div class="upload-section">
+                <div class="file-input-wrapper">
+                    <div class="file-input-button">Choose Excel File or Drop Here</div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls">
+                </div>
+                <span id="fileName" style="margin-left: 15px; color: #666;"></span>
+            </div>
+
+            <div class="filters" id="filters" style="display: none;">
+                <div class="filter-group">
+                    <label for="dateFromFilter">Date From:</label>
+                    <input type="date" id="dateFromFilter" aria-label="Filter start date">
+                </div>
+                <div class="filter-group">
+                    <label for="dateToFilter">Date To:</label>
+                    <input type="date" id="dateToFilter" aria-label="Filter end date">
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <div class="filter-actions">
+                        <button class="btn" id="clearFiltersBtn" aria-label="Clear date filters">Clear Filters</button>
+                    </div>
+                </div>
+            </div>
+            <div class="preset-filters" id="presetFilters" style="display: none; margin-top: 16px;">
+                <span style="font-size: 0.85em; color: #666; margin-right: 8px;">Quick filters:</span>
+                <button class="preset-btn" data-preset="today" aria-label="Filter to today's data">Today</button>
+                <button class="preset-btn" data-preset="yesterday" aria-label="Filter to yesterday's data">Yesterday</button>
+                <button class="preset-btn" data-preset="last7days" aria-label="Filter to last 7 days">Last 7 Days</button>
+                <button class="preset-btn" data-preset="last30days" aria-label="Filter to last 30 days">Last 30 Days</button>
+                <button class="preset-btn" data-preset="thismonth" aria-label="Filter to this month">This Month</button>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stats-grid" id="statsGrid"></div>
+        </div>
+
+        <div class="chart-container" id="chartContainer" role="region" aria-label="Multi-metric chart">
+            <div class="chart-wrapper">
+                <canvas id="dataChart" role="img" aria-label="Line chart showing all metrics over time"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-container" id="aqChartContainer" style="display: none;" role="region" aria-label="Air quality detail chart">
+            <div class="aq-chart-header">
+                <h3>Air Quality Detail</h3>
+                <select id="aqMetricSelect" aria-label="Select air quality metric to display">
+                    <option value="">Select a metric...</option>
+                </select>
+            </div>
+            <div class="aq-legend" role="list" aria-label="Air quality levels legend">
+                <span class="aq-legend-item" role="listitem"><span class="aq-dot" style="background: #16a34a;" aria-hidden="true"></span> Good</span>
+                <span class="aq-legend-item" role="listitem"><span class="aq-dot" style="background: #eab308;" aria-hidden="true"></span> Moderate</span>
+                <span class="aq-legend-item" role="listitem"><span class="aq-dot" style="background: #f97316;" aria-hidden="true"></span> Poor</span>
+                <span class="aq-legend-item" role="listitem"><span class="aq-dot" style="background: #dc2626;" aria-hidden="true"></span> Bad</span>
+                <span class="aq-legend-item" role="listitem"><span class="aq-dot" style="background: #9333ea;" aria-hidden="true"></span> Severe</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="aqChart" role="img" aria-label="Color-coded line chart showing air quality levels over time"></canvas>
+            </div>
+        </div>
+
+        <div class="data-container" role="region" aria-label="Data table">
+            <div class="loading" id="loading" role="status" aria-live="polite">Upload an Excel file to get started</div>
+            <div class="table-wrapper" id="tableWrapper" style="display: none;">
+                <table id="dataTable" role="table" aria-label="Air quality measurements data">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                <nav class="pagination" id="pagination" role="navigation" aria-label="Table pagination"></nav>
+            </div>
+        </div>
+
+        <div class="reference-section" id="referenceSection" style="display: none;">
+            <h2>Air Quality Thresholds</h2>
+            <p class="reference-intro">Color-coded cells in the table indicate air quality levels based on the following thresholds:</p>
+
+            <div class="threshold-tables">
+                <div class="threshold-table">
+                    <h3>PM2.5 (μg/m³)</h3>
+                    <table>
+                        <tr><td class="aq-good">Good</td><td>0 – 12</td></tr>
+                        <tr><td class="aq-moderate">Moderate</td><td>13 – 35</td></tr>
+                        <tr><td class="aq-poor">Poor</td><td>36 – 55</td></tr>
+                        <tr><td class="aq-bad">Bad</td><td>56 – 150</td></tr>
+                        <tr><td class="aq-severe">Severe</td><td>> 150</td></tr>
+                    </table>
+                    <p class="source">Source: US EPA AQI</p>
+                </div>
+
+                <div class="threshold-table">
+                    <h3>PM10 (μg/m³)</h3>
+                    <table>
+                        <tr><td class="aq-good">Good</td><td>0 – 54</td></tr>
+                        <tr><td class="aq-moderate">Moderate</td><td>55 – 154</td></tr>
+                        <tr><td class="aq-poor">Poor</td><td>155 – 254</td></tr>
+                        <tr><td class="aq-bad">Bad</td><td>255 – 354</td></tr>
+                        <tr><td class="aq-severe">Severe</td><td>> 354</td></tr>
+                    </table>
+                    <p class="source">Source: US EPA AQI</p>
+                </div>
+
+                <div class="threshold-table">
+                    <h3>CO₂ (ppm)</h3>
+                    <table>
+                        <tr><td class="aq-good">Good</td><td>400 – 800</td></tr>
+                        <tr><td class="aq-moderate">Moderate</td><td>801 – 1000</td></tr>
+                        <tr><td class="aq-poor">Poor</td><td>1001 – 1500</td></tr>
+                        <tr><td class="aq-bad">Bad</td><td>1501 – 2000</td></tr>
+                        <tr><td class="aq-severe">Severe</td><td>> 2000</td></tr>
+                    </table>
+                    <p class="source">Source: ASHRAE Standard 62.1</p>
+                </div>
+
+                <div class="threshold-table">
+                    <h3>eTVOC (VOC Index)</h3>
+                    <table>
+                        <tr><td class="aq-good">Good</td><td>0 – 50</td></tr>
+                        <tr><td class="aq-moderate">Moderate</td><td>51 – 100</td></tr>
+                        <tr><td class="aq-poor">Poor</td><td>101 – 150</td></tr>
+                        <tr><td class="aq-bad">Bad</td><td>151 – 200</td></tr>
+                        <tr><td class="aq-severe">Severe</td><td>> 200</td></tr>
+                    </table>
+                    <p class="source">Source: Sensirion VOC Index</p>
+                </div>
+
+                <div class="threshold-table">
+                    <h3>Noise (dB)</h3>
+                    <table>
+                        <tr><td class="aq-good">Quiet</td><td>0 – 40</td></tr>
+                        <tr><td class="aq-moderate">Moderate</td><td>41 – 55</td></tr>
+                        <tr><td class="aq-poor">Loud</td><td>56 – 70</td></tr>
+                        <tr><td class="aq-bad">Very Loud</td><td>71 – 85</td></tr>
+                        <tr><td class="aq-severe">Harmful</td><td>> 85</td></tr>
+                    </table>
+                    <p class="source">Source: WHO Guidelines</p>
+                </div>
+            </div>
+
+            <div class="reference-footer">
+                <p>These thresholds are based on established guidelines for indoor air quality assessment. Individual sensitivity may vary.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration constants
+        const CONFIG = {
+            ROWS_PER_PAGE: 50,
+            CHART_COLORS: [
+                '#2563eb',  // Blue
+                '#dc2626',  // Red
+                '#16a34a',  // Green
+                '#f59e0b',  // Amber
+                '#8b5cf6',  // Purple
+                '#06b6d4',  // Cyan
+                '#ec4899',  // Pink
+                '#84cc16'   // Lime
+            ],
+            AQ_COLORS: {
+                good: '#16a34a',
+                moderate: '#eab308',
+                poor: '#f97316',
+                bad: '#dc2626',
+                severe: '#9333ea'
+            },
+            AQ_THRESHOLDS: {
+                'pm2.5': { ranges: [12, 35, 55, 150], levels: ['good', 'moderate', 'poor', 'bad', 'severe'] },
+                'pm10': { ranges: [54, 154, 254, 354], levels: ['good', 'moderate', 'poor', 'bad', 'severe'] },
+                'co2': { ranges: [800, 1000, 1500, 2000], levels: ['good', 'moderate', 'poor', 'bad', 'severe'] },
+                'tvoc': { ranges: [50, 100, 150, 200], levels: ['good', 'moderate', 'poor', 'bad', 'severe'] },
+                'voc': { ranges: [50, 100, 150, 200], levels: ['good', 'moderate', 'poor', 'bad', 'severe'] },
+                'noise': { ranges: [40, 55, 70, 85], levels: ['good', 'moderate', 'poor', 'bad', 'severe'] },
+                'db': { ranges: [40, 55, 70, 85], levels: ['good', 'moderate', 'poor', 'bad', 'severe'] }
+            },
+            EXCEL_EPOCH: new Date(1899, 11, 30), // Excel serial date base (with 1900 leap year bug)
+            MAX_TICKS: 10
+        };
+
+        // Global state
+        let allData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        let headers = [];
+        let chart = null;
+        let aqChart = null;
+        let timeColumn = null;
+        let numericColumns = [];
+        let filtersInitialized = false;  // Track if event listeners are attached
+        let aqChartInitialized = false;  // Track if AQ chart listeners are attached
+
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const loading = document.getElementById('loading');
+        const tableWrapper = document.getElementById('tableWrapper');
+        const filters = document.getElementById('filters');
+        const stats = document.getElementById('stats');
+        const chartContainer = document.getElementById('chartContainer');
+        const aqChartContainer = document.getElementById('aqChartContainer');
+        const aqMetricSelect = document.getElementById('aqMetricSelect');
+
+        // ============================================================================
+        // Helper Functions - Air Quality
+        // ============================================================================
+
+        /**
+         * Determines the metric type from a header name
+         * @param {string} header - The column header name
+         * @returns {string|null} - The metric type or null if not an AQ metric
+         */
+        function getMetricType(header) {
+            const h = header.toLowerCase();
+            if (h.includes('pm2.5')) return 'pm2.5';
+            if (h.includes('pm10')) return 'pm10';
+            if (h.includes('co2')) return 'co2';
+            if (h.includes('tvoc')) return 'tvoc';
+            if (h.includes('voc') && !h.includes('tvoc')) return 'voc';
+            if (h.includes('noise')) return 'noise';
+            if (h.includes('db')) return 'db';
+            return null;
+        }
+
+        /**
+         * Gets air quality information for a given metric and value
+         * @param {string} header - The column header name
+         * @param {number} value - The measured value
+         * @returns {Object|null} - Object containing level, color, and className
+         */
+        function getAirQualityInfo(header, value) {
+            const metricType = getMetricType(header);
+            if (!metricType) return null;
+
+            const v = parseFloat(value);
+            if (isNaN(v)) return null;
+
+            const threshold = CONFIG.AQ_THRESHOLDS[metricType];
+            if (!threshold) return null;
+
+            // Find which range the value falls into
+            let level = threshold.levels[threshold.levels.length - 1]; // Default to worst level
+            for (let i = 0; i < threshold.ranges.length; i++) {
+                if (v <= threshold.ranges[i]) {
+                    level = threshold.levels[i];
+                    break;
+                }
+            }
+
+            return {
+                level: level,
+                color: CONFIG.AQ_COLORS[level],
+                className: `aq-${level}`
+            };
+        }
+
+        /**
+         * Gets air quality level only (for backwards compatibility)
+         */
+        function getAirQualityLevel(header, value) {
+            const info = getAirQualityInfo(header, value);
+            return info ? info.level : null;
+        }
+
+        /**
+         * Gets air quality color only (for backwards compatibility)
+         */
+        function getAqColor(header, value) {
+            const info = getAirQualityInfo(header, value);
+            return info ? info.color : '#888';
+        }
+
+        /**
+         * Gets all metrics that have air quality thresholds
+         */
+        function getAqMetrics() {
+            return headers.filter(h => getMetricType(h) !== null);
+        }
+
+        // ============================================================================
+        // Helper Functions - Chart
+        // ============================================================================
+
+        /**
+         * Gets a chart color by index
+         */
+        function getChartColor(index) {
+            return CONFIG.CHART_COLORS[index % CONFIG.CHART_COLORS.length];
+        }
+
+        /**
+         * Creates chart options configuration
+         */
+        function createChartOptions(showLegend = true) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: showLegend,
+                        position: 'top',
+                        align: 'start',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'line',
+                            padding: 20,
+                            font: {
+                                size: 12,
+                                family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                            },
+                            color: '#333'
+                        },
+                        onClick: function(e, legendItem, legend) {
+                            const index = legendItem.datasetIndex;
+                            const ci = legend.chart;
+                            const meta = ci.getDatasetMeta(index);
+                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                            ci.update();
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: '#000',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#000',
+                        borderWidth: 1,
+                        padding: 12,
+                        titleFont: { size: 13 },
+                        bodyFont: { size: 12 }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: {
+                            color: '#f0f0f0',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: CONFIG.MAX_TICKS,
+                            color: '#888',
+                            font: { size: 11 }
+                        }
+                    },
+                    y: {
+                        display: true,
+                        grid: {
+                            color: '#f0f0f0',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#888',
+                            font: { size: 11 }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            };
+        }
+
+        // ============================================================================
+        // Helper Functions - Date
+        // ============================================================================
+
+        /**
+         * Parses various date formats including Excel serial dates
+         */
+        function parseDate(value) {
+            if (!value) return null;
+            if (value instanceof Date) return value;
+
+            // Excel serial date: days since 1900-01-01 (with 1900 leap year bug)
+            if (typeof value === 'number') {
+                return new Date(CONFIG.EXCEL_EPOCH.getTime() + value * 86400000);
+            }
+
+            // Parse DD/MM/YYYY or DD/MM/YYYY HH:MM:SS format
+            if (typeof value === 'string') {
+                const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}):(\d{2}))?/);
+                if (match) {
+                    const day = parseInt(match[1], 10);
+                    const month = parseInt(match[2], 10) - 1;
+                    const year = parseInt(match[3], 10);
+                    const hour = match[4] ? parseInt(match[4], 10) : 0;
+                    const min = match[5] ? parseInt(match[5], 10) : 0;
+                    const sec = match[6] ? parseInt(match[6], 10) : 0;
+                    return new Date(year, month, day, hour, min, sec);
+                }
+
+                // Try standard parsing as fallback
+                const parsed = new Date(value);
+                if (!isNaN(parsed.getTime())) return parsed;
+            }
+
+            return null;
+        }
+
+        // ============================================================================
+        // Utility Functions
+        // ============================================================================
+
+        /**
+         * Sanitizes HTML to prevent XSS attacks
+         * @param {string} str - The string to sanitize
+         * @returns {string} - Sanitized HTML-safe string
+         */
+        function sanitizeHTML(str) {
+            if (str === null || str === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        /**
+         * Validates file size before processing
+         * @param {File} file - The file to validate
+         * @returns {boolean} - True if valid, false otherwise
+         */
+        function validateFileSize(file) {
+            const maxSize = 50 * 1024 * 1024; // 50MB limit
+            if (file.size > maxSize) {
+                const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+                showEmptyState(
+                    'File Too Large',
+                    `The file is ${sizeMB}MB. Please upload files smaller than 50MB.`
+                );
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * Shows loading state with spinner
+         */
+        function showLoading(message = 'Loading...') {
+            loading.innerHTML = `<div class="spinner"></div><div>${sanitizeHTML(message)}</div>`;
+            loading.style.display = 'block';
+            tableWrapper.style.display = 'none';
+        }
+
+        /**
+         * Shows empty state message
+         */
+        function showEmptyState(title, message) {
+            loading.innerHTML = `
+                <div class="empty-state">
+                    <h3>${sanitizeHTML(title)}</h3>
+                    <p>${sanitizeHTML(message)}</p>
+                </div>
+            `;
+            loading.style.display = 'block';
+            tableWrapper.style.display = 'none';
+        }
+
+        /**
+         * Clears all date filters
+         */
+        function clearFilters() {
+            const dateFromFilter = document.getElementById('dateFromFilter');
+            const dateToFilter = document.getElementById('dateToFilter');
+
+            // Reset to full data range
+            const dates = allData
+                .map(row => parseDate(row[timeColumn]))
+                .filter(d => d !== null);
+
+            if (dates.length > 0) {
+                const minDate = dates.reduce((min, d) => d < min ? d : min);
+                const maxDate = dates.reduce((max, d) => d > max ? d : max);
+                const formatDate = (d) => d.toISOString().split('T')[0];
+
+                dateFromFilter.value = formatDate(minDate);
+                dateToFilter.value = formatDate(maxDate);
+            }
+
+            applyFilters();
+        }
+
+        /**
+         * Applies preset date filter
+         */
+        function applyPresetFilter(preset) {
+            const dateFromFilter = document.getElementById('dateFromFilter');
+            const dateToFilter = document.getElementById('dateToFilter');
+            const now = new Date();
+            const formatDate = (d) => d.toISOString().split('T')[0];
+
+            let fromDate, toDate;
+
+            switch (preset) {
+                case 'today':
+                    fromDate = toDate = new Date(now);
+                    break;
+                case 'yesterday':
+                    fromDate = toDate = new Date(now.setDate(now.getDate() - 1));
+                    break;
+                case 'last7days':
+                    toDate = new Date();
+                    fromDate = new Date(toDate);
+                    fromDate.setDate(fromDate.getDate() - 7);
+                    break;
+                case 'last30days':
+                    toDate = new Date();
+                    fromDate = new Date(toDate);
+                    fromDate.setDate(fromDate.getDate() - 30);
+                    break;
+                case 'thismonth':
+                    toDate = new Date();
+                    fromDate = new Date(toDate.getFullYear(), toDate.getMonth(), 1);
+                    break;
+                default:
+                    return;
+            }
+
+            dateFromFilter.value = formatDate(fromDate);
+            dateToFilter.value = formatDate(toDate);
+            applyFilters();
+        }
+
+        // ============================================================================
+        // File Loading
+        // ============================================================================
+
+        // Auto-load the default file if it exists
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('example.xlsx');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    processFile(blob);
+                    fileName.textContent = 'example.xlsx';
+                }
+            } catch (e) {
+                // Default file not found, waiting for user upload
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (!validateFileSize(file)) {
+                    return;
+                }
+                fileName.textContent = file.name;
+                processFile(file);
+            }
+        });
+
+        // Drag and drop support
+        document.querySelector('.file-input-wrapper').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.querySelector('.file-input-wrapper').addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                if (!validateFileSize(file)) {
+                    return;
+                }
+                fileName.textContent = file.name;
+                processFile(file);
+            }
+        });
+
+        // Clear filters button
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', clearFilters);
+        }
+
+        // Preset filter buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const preset = e.target.getAttribute('data-preset');
+                applyPresetFilter(preset);
+            });
+        });
+
+        /**
+         * Processes an uploaded Excel file and initializes all visualizations
+         */
+        function processFile(file) {
+            showLoading('Processing Excel file...');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    if (jsonData.length > 0) {
+                        headers = jsonData[0].filter(h => h && h.trim());  // Filter out empty headers
+
+                        if (headers.length === 0) {
+                            showEmptyState('No Valid Headers', 'The Excel file does not contain any valid column headers.');
+                            return;
+                        }
+
+                        allData = jsonData.slice(1).map(row => {
+                            const obj = {};
+                            headers.forEach((header, index) => {
+                                obj[header] = row[index];
+                            });
+                            return obj;
+                        }).filter(row => Object.values(row).some(val => val !== undefined && val !== ''));
+
+                        if (allData.length === 0) {
+                            showEmptyState('No Data Found', 'The Excel file does not contain any data rows.');
+                            return;
+                        }
+
+                        filteredData = [...allData];
+                        setupChart();
+                        setupFilters();
+                        setupAqChart();
+                        displayStats();
+                        displayTable();
+                        renderChart();
+
+                        loading.style.display = 'none';
+                        tableWrapper.style.display = 'block';
+                        filters.style.display = 'flex';
+                        stats.style.display = 'block';
+                        chartContainer.style.display = 'block';
+                        aqChartContainer.style.display = 'block';
+                        document.getElementById('referenceSection').style.display = 'block';
+                        document.getElementById('presetFilters').style.display = 'flex';
+                    } else {
+                        showEmptyState('Empty File', 'The Excel file appears to be empty.');
+                    }
+                } catch (error) {
+                    const errorMsg = error.message || 'An error occurred while processing the file.';
+                    showEmptyState('Error Loading File', errorMsg);  // showEmptyState already sanitizes
+                    console.error('File processing error:', error);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        /**
+         * Sets up date filters with min/max values from data
+         */
+        function setupFilters() {
+            const dateFromFilter = document.getElementById('dateFromFilter');
+            const dateToFilter = document.getElementById('dateToFilter');
+
+            // Find min and max dates from the data
+            const dates = allData
+                .map(row => parseDate(row[timeColumn]))
+                .filter(d => d !== null);
+
+            if (dates.length > 0) {
+                // Use reduce for better performance with large datasets
+                const minDate = dates.reduce((min, d) => d < min ? d : min);
+                const maxDate = dates.reduce((max, d) => d > max ? d : max);
+
+                // Format as YYYY-MM-DD for input[type="date"]
+                const formatDate = (d) => d.toISOString().split('T')[0];
+
+                dateFromFilter.value = formatDate(minDate);
+                dateToFilter.value = formatDate(maxDate);
+            }
+
+            // Only add event listeners once to prevent memory leaks
+            if (!filtersInitialized) {
+                dateFromFilter.addEventListener('change', applyFilters);
+                dateToFilter.addEventListener('change', applyFilters);
+                filtersInitialized = true;
+            }
+        }
+
+        /**
+         * Auto-detects time column and identifies numeric columns for charting
+         */
+        function setupChart() {
+            // Auto-detect time/date column
+            timeColumn = headers.find(h =>
+                h && (h.toLowerCase().includes('time') ||
+                      h.toLowerCase().includes('date') ||
+                      h.toLowerCase().includes('timestamp'))
+            ) || headers[0];
+
+            // Identify all numeric columns (excluding time column)
+            // Check if majority of values (>80%) are numeric for robustness
+            numericColumns = headers.filter(h => {
+                if (h === timeColumn) return false;
+                const values = allData.map(row => row[h]).filter(v => v !== undefined && v !== '');
+                if (values.length === 0) return false;
+
+                // Count how many values are numeric
+                const numericCount = values.filter(v => !isNaN(v) && v !== '').length;
+                const numericRatio = numericCount / values.length;
+
+                // Column is numeric if at least 80% of values are numeric
+                return numericRatio >= 0.8;
+            });
+        }
+
+
+        /**
+         * Applies date range filters and refreshes all visualizations
+         */
+        function applyFilters() {
+            const dateFrom = document.getElementById('dateFromFilter').value;
+            const dateTo = document.getElementById('dateToFilter').value;
+
+            // Use timeColumn directly (already set in setupChart)
+            if (!dateFrom && !dateTo) {
+                filteredData = [...allData];
+            } else {
+                const fromDate = dateFrom ? new Date(dateFrom) : null;
+                const toDate = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+
+                filteredData = allData.filter(row => {
+                    if (!timeColumn) return true;
+
+                    const rowDate = parseDate(row[timeColumn]);
+                    if (!rowDate) return true;
+
+                    if (fromDate && rowDate < fromDate) return false;
+                    if (toDate && rowDate > toDate) return false;
+
+                    return true;
+                });
+            }
+
+            currentPage = 1;
+            displayStats();
+            displayTable();
+            renderChart();
+            renderAqChart();  // Update air quality chart with filtered data
+        }
+
+        /**
+         * Renders the main multi-metric chart
+         */
+        function renderChart() {
+            if (!filteredData.length || !timeColumn || numericColumns.length === 0) return;
+
+            try {
+                // Save the hidden state of datasets before destroying
+                const hiddenState = {};
+                if (chart) {
+                    chart.data.datasets.forEach((dataset, index) => {
+                        const meta = chart.getDatasetMeta(index);
+                        hiddenState[dataset.label] = meta.hidden;
+                    });
+                    chart.destroy();
+                    chart = null;  // Release reference
+                }
+
+                // Prepare datasets
+                const labels = filteredData.map(row => row[timeColumn]);
+                const datasets = numericColumns.map((yAxis, index) => {
+                    const color = getChartColor(index);
+
+                    return {
+                        label: yAxis,
+                        data: filteredData.map(row => {
+                            const value = row[yAxis];
+                            return isNaN(value) ? null : Number(value);
+                        }),
+                        borderColor: color,
+                        backgroundColor: color + '1a',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: false,
+                        hidden: hiddenState[yAxis] || false,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    };
+                });
+
+                // Create new chart
+                const ctx = document.getElementById('dataChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: createChartOptions(true)
+                });
+            } catch (error) {
+                console.error('Failed to render main chart:', error);
+                // Show sanitized error message to user
+                const chartContainer = document.getElementById('chartContainer');
+                if (chartContainer) {
+                    const errorMsg = sanitizeHTML(error.message || 'Unknown error');
+                    chartContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #dc2626;">Failed to render chart. ${errorMsg}</div>`;
+                }
+            }
+        }
+
+        /**
+         * Displays summary statistics for all metrics
+         */
+        function displayStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = '';
+
+            // Total records
+            addStatCard(statsGrid, filteredData.length, 'Total Records', '#000');
+
+            // Calculate stats for numeric columns
+            numericColumns.forEach((header, index) => {
+                const values = filteredData.map(row => row[header]).filter(v => !isNaN(v) && v !== '');
+                if (values.length > 0) {
+                    const numValues = values.map(Number);
+                    const avg = (numValues.reduce((a, b) => a + b, 0) / numValues.length).toFixed(2);
+                    addStatCard(statsGrid, avg, `Avg ${header}`, getChartColor(index));
+                }
+            });
+        }
+
+        /**
+         * Adds a stat card to the stats grid
+         */
+        function addStatCard(container, value, label, color) {
+            const card = document.createElement('div');
+            card.className = 'stat-card';
+            card.innerHTML = `
+                <div class="stat-indicator" style="background: ${sanitizeHTML(color)}"></div>
+                <div class="stat-value">${sanitizeHTML(value)}</div>
+                <div class="stat-label">${sanitizeHTML(label)}</div>
+            `;
+            container.appendChild(card);
+        }
+
+
+        /**
+         * Sets up the air quality chart and metric selector
+         */
+        function setupAqChart() {
+            const aqMetrics = getAqMetrics();
+            aqMetricSelect.innerHTML = '<option value="">Select a metric...</option>';
+
+            aqMetrics.forEach(metric => {
+                const option = document.createElement('option');
+                option.value = sanitizeHTML(metric);
+                option.textContent = metric;  // textContent is safe from XSS
+                aqMetricSelect.appendChild(option);
+            });
+
+            // Select first metric by default
+            if (aqMetrics.length > 0) {
+                aqMetricSelect.value = aqMetrics[0];
+                renderAqChart();
+            }
+
+            // Only add event listener once to prevent memory leaks
+            if (!aqChartInitialized) {
+                aqMetricSelect.addEventListener('change', renderAqChart);
+                aqChartInitialized = true;
+            }
+        }
+
+        /**
+         * Renders the air quality chart with color-coded segments
+         */
+        function renderAqChart() {
+            const selectedMetric = aqMetricSelect.value;
+            if (!selectedMetric || !filteredData.length) return;
+
+            try {
+                // Properly clean up existing chart
+                if (aqChart) {
+                    aqChart.destroy();
+                    aqChart = null;  // Release reference
+                }
+
+                const labels = filteredData.map(row => row[timeColumn]);
+                const data = filteredData.map(row => {
+                    const value = row[selectedMetric];
+                    return isNaN(value) ? null : Number(value);
+                });
+
+                // Pre-compute colors for each data point
+                const pointColors = filteredData.map(row => getAqColor(selectedMetric, row[selectedMetric]));
+
+                const options = createChartOptions(false);
+                // Customize tooltip for air quality display
+                options.plugins.tooltip.callbacks = {
+                    label: function(context) {
+                        const value = context.parsed.y;
+                        const level = getAirQualityLevel(selectedMetric, value);
+                        const levelText = level ? ` (${level.charAt(0).toUpperCase() + level.slice(1)})` : '';
+                        return `${selectedMetric}: ${value}${levelText}`;
+                    }
+                };
+
+                const ctx = document.getElementById('aqChart').getContext('2d');
+                aqChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: selectedMetric,
+                            data: data,
+                            segment: {
+                                // Fixed: renamed parameter from ctx to context to avoid collision
+                                borderColor: context => pointColors[context.p0DataIndex] || '#888'
+                            },
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            // Fixed: renamed parameter from ctx to context to avoid collision
+                            pointHoverBackgroundColor: context => pointColors[context.dataIndex] || '#888'
+                        }]
+                    },
+                    options: options
+                });
+            } catch (error) {
+                console.error('Failed to render air quality chart:', error);
+                // Show sanitized error message to user
+                const aqChartContainer = document.getElementById('aqChartContainer');
+                if (aqChartContainer) {
+                    const errorDiv = aqChartContainer.querySelector('.chart-wrapper') || aqChartContainer;
+                    const errorMsg = sanitizeHTML(error.message || 'Unknown error');
+                    errorDiv.innerHTML = `<div style="padding: 20px; text-align: center; color: #dc2626;">Failed to render air quality chart. ${errorMsg}</div>`;
+                }
+            }
+        }
+
+
+        /**
+         * Displays the data table with pagination and air quality color coding
+         */
+        function displayTable() {
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+            const pagination = document.getElementById('pagination');
+
+            // Create header with sanitized values
+            tableHead.innerHTML = '<tr>' + headers.map(h => `<th>${sanitizeHTML(h)}</th>`).join('') + '</tr>';
+
+            // Calculate pagination
+            const totalPages = Math.ceil(filteredData.length / CONFIG.ROWS_PER_PAGE);
+            const startIndex = (currentPage - 1) * CONFIG.ROWS_PER_PAGE;
+            const endIndex = startIndex + CONFIG.ROWS_PER_PAGE;
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            // Create rows with air quality color coding and sanitized values
+            tableBody.innerHTML = pageData.map(row => {
+                return '<tr>' + headers.map(h => {
+                    let value = row[h];
+                    if (value === undefined || value === null) value = '';
+                    const info = getAirQualityInfo(h, value);
+                    const levelClass = info ? ` class="${info.className}"` : '';
+                    return `<td${levelClass}>${sanitizeHTML(value)}</td>`;
+                }).join('') + '</tr>';
+            }).join('');
+
+            // Create pagination controls
+            pagination.innerHTML = `
+                <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''} aria-label="Previous page">Previous</button>
+                <span aria-live="polite" aria-atomic="true">Page ${currentPage} of ${totalPages || 1}</span>
+                <button onclick="changePage(1)" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''} aria-label="Next page">Next</button>
+            `;
+
+            if (filteredData.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="' + headers.length + '" class="no-data">No data matches your filters</td></tr>';
+            }
+        }
+
+        /**
+         * Changes the current page and refreshes the table
+         */
+        function changePage(direction) {
+            currentPage += direction;
+            displayTable();
+            document.querySelector('.data-container').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
