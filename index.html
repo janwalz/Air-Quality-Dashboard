@@ -566,6 +566,12 @@
             border-color: #b91c1c;
         }
 
+        .api-security-note {
+            font-size: 0.8em;
+            color: #92400e;
+            margin: 4px 0 0 0;
+        }
+
         .btn-success {
             background: #16a34a;
             color: #fff;
@@ -763,7 +769,9 @@
                     <div class="api-actions-row">
                         <button class="btn btn-primary" id="saveApiSettings" aria-label="Save API credentials">Save Credentials</button>
                         <button class="btn" id="testApiAuth" aria-label="Test API authentication" disabled>Test Auth</button>
+                        <button class="btn btn-danger" id="clearApiCredentials" aria-label="Clear saved credentials" style="display: none;">Clear Credentials</button>
                     </div>
+                    <p class="api-security-note">Credentials are stored in your browser's localStorage. Do not use on shared or public computers.</p>
                     <div class="api-actions-row">
                         <select id="syncRange" aria-label="Data range to sync">
                             <option value="7">Last 7 days</option>
@@ -1350,10 +1358,10 @@
             if (apiKey) document.getElementById('apiKey').value = apiKey;
             if (apiSecret) document.getElementById('apiSecret').value = apiSecret;
 
-            if (apiKey && apiSecret) {
-                document.getElementById('syncFromDevice').disabled = false;
-                document.getElementById('testApiAuth').disabled = false;
-            }
+            const hasCredentials = apiKey && apiSecret;
+            document.getElementById('syncFromDevice').disabled = !hasCredentials;
+            document.getElementById('testApiAuth').disabled = !hasCredentials;
+            document.getElementById('clearApiCredentials').style.display = hasCredentials ? '' : 'none';
         }
 
         /**
@@ -1374,11 +1382,31 @@
 
             document.getElementById('syncFromDevice').disabled = false;
             document.getElementById('testApiAuth').disabled = false;
+            document.getElementById('clearApiCredentials').style.display = '';
             statusEl.innerHTML = '<span class="api-status success">✓ Credentials saved</span>';
 
             setTimeout(() => {
                 statusEl.innerHTML = '';
             }, STATUS_CLEAR_DELAY);
+        }
+
+        /**
+         * Clears saved API credentials from localStorage and resets UI
+         */
+        function clearApiCredentials() {
+            localStorage.removeItem('qingping_api_key');
+            localStorage.removeItem('qingping_api_secret');
+            document.getElementById('apiKey').value = '';
+            document.getElementById('apiSecret').value = '';
+            document.getElementById('syncFromDevice').disabled = true;
+            document.getElementById('testApiAuth').disabled = true;
+            document.getElementById('clearApiCredentials').style.display = 'none';
+            accessToken = null;
+            tokenExpiresAt = 0;
+
+            const statusEl = document.getElementById('apiStatus');
+            statusEl.innerHTML = '<span class="api-status success">✓ Credentials cleared</span>';
+            setTimeout(() => { statusEl.innerHTML = ''; }, STATUS_CLEAR_DELAY);
         }
 
         /**
@@ -1926,6 +1954,11 @@
         const saveApiSettingsBtn = document.getElementById('saveApiSettings');
         if (saveApiSettingsBtn) {
             saveApiSettingsBtn.addEventListener('click', saveApiCredentials);
+        }
+
+        const clearApiCredentialsBtn = document.getElementById('clearApiCredentials');
+        if (clearApiCredentialsBtn) {
+            clearApiCredentialsBtn.addEventListener('click', clearApiCredentials);
         }
 
         const testApiAuthBtn = document.getElementById('testApiAuth');
