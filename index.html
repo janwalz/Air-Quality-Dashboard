@@ -543,9 +543,27 @@
 
         .api-actions {
             display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .api-actions-row {
+            display: flex;
             gap: 12px;
             align-items: center;
-            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: #fff;
+            border-color: #dc2626;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
         }
 
         .btn-success {
@@ -741,25 +759,31 @@
                         <input type="password" id="apiSecret" placeholder="Your API Secret" aria-label="Qingping API Secret">
                     </div>
                 </div>
-                <div class="api-info-box">
-                    <strong>ℹ️ Local server required:</strong>
-                    <p style="margin-top: 6px;">The API connection only works when running this page from a local server (e.g. <code>python3 -m http.server 8000</code>). It will not work on GitHub Pages due to browser CORS restrictions.</p>
-                </div>
                 <div class="api-actions">
-                    <button class="btn btn-primary" id="saveApiSettings" aria-label="Save API credentials">Save Credentials</button>
-                    <button class="btn" id="testApiAuth" aria-label="Test API authentication" disabled>Test Auth</button>
-                    <button class="btn btn-success sync-button" id="syncFromDevice" aria-label="Sync data from Qingping device" disabled>
-                        <span>🔄</span> Sync from Device
-                    </button>
-                    <button class="btn" id="exportApiDataBtn" aria-label="Export synced data to CSV" disabled>Export Synced Data</button>
+                    <div class="api-actions-row">
+                        <button class="btn btn-primary" id="saveApiSettings" aria-label="Save API credentials">Save Credentials</button>
+                        <button class="btn" id="testApiAuth" aria-label="Test API authentication" disabled>Test Auth</button>
+                    </div>
+                    <div class="api-actions-row">
+                        <select id="syncRange" aria-label="Data range to sync">
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <button class="btn btn-success sync-button" id="syncFromDevice" aria-label="Sync data from Qingping device" disabled>
+                            <span>🔄</span> Sync from Device
+                        </button>
+                        <button class="btn btn-danger" id="stopSync" aria-label="Stop syncing" style="display: none;">Stop</button>
+                        <button class="btn" id="exportApiDataBtn" aria-label="Export synced data to CSV" disabled>Export Synced Data</button>
+                    </div>
                     <div id="apiStatus"></div>
                 </div>
             </div>
 
             <div class="upload-section">
                 <div class="file-input-wrapper">
-                    <div class="file-input-button">Choose Excel File or Drop Here</div>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls">
+                    <div class="file-input-button">Choose File or Drop Here</div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
                 </div>
                 <span id="fileName" style="margin-left: 15px; color: #666;"></span>
                 <button class="btn" id="toggleApiSettings" style="margin-left: 12px;" aria-label="Toggle API settings">⚙️ API Settings</button>
@@ -1233,7 +1257,12 @@
             if (dates.length > 0) {
                 const minDate = dates.reduce((min, d) => d < min ? d : min);
                 const maxDate = dates.reduce((max, d) => d > max ? d : max);
-                const formatDate = (d) => d.toISOString().split('T')[0];
+                const formatDate = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                };
 
                 dateFromFilter.value = formatDate(minDate);
                 dateToFilter.value = formatDate(maxDate);
@@ -1249,7 +1278,12 @@
             const dateFromFilter = document.getElementById('dateFromFilter');
             const dateToFilter = document.getElementById('dateToFilter');
             const now = new Date();
-            const formatDate = (d) => d.toISOString().split('T')[0];
+            const formatDate = (d) => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
 
             let fromDate, toDate;
 
@@ -1290,7 +1324,7 @@
         let apiData = null;  // Store synced data separately
         let accessToken = null;
         let tokenExpiresAt = 0;  // Timestamp (ms) when the token expires
-        const SYNC_DAYS = 7;  // Number of days of history to fetch
+        let syncAbortController = null;
         const STATUS_CLEAR_DELAY = 3000;
 
         /**
@@ -1516,7 +1550,7 @@
         /**
          * Fetches historical data for a device with pagination
          */
-        async function getDeviceHistory(mac, startTime, endTime, statusCallback) {
+        async function getDeviceHistory(mac, startTime, endTime, statusCallback, signal) {
             if (!accessToken || Date.now() >= tokenExpiresAt) {
                 await authenticateQingping();
             }
@@ -1528,7 +1562,10 @@
 
             // Fetch data in batches until we have all records
             while (total === null || offset < total) {
-                // Build query parameters for GET request
+                if (signal?.aborted) {
+                    return { total: fetchedRecords.length, data: fetchedRecords, aborted: true };
+                }
+
                 const timestamp = Date.now();
                 const params = new URLSearchParams({
                     mac: mac,
@@ -1544,7 +1581,8 @@
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${accessToken}`
-                    }
+                    },
+                    signal: signal
                 });
 
                 if (!response.ok) {
@@ -1589,12 +1627,16 @@
          */
         async function syncFromDevice() {
             const syncBtn = document.getElementById('syncFromDevice');
+            const stopBtn = document.getElementById('stopSync');
             const statusEl = document.getElementById('apiStatus');
+
+            syncAbortController = new AbortController();
 
             try {
                 // Show loading state
                 syncBtn.classList.add('syncing');
                 syncBtn.disabled = true;
+                stopBtn.style.display = '';
                 statusEl.innerHTML = '<span class="api-status info">🔄 Connecting to Qingping...</span>';
 
                 // Authenticate
@@ -1614,14 +1656,43 @@
 
                 statusEl.innerHTML = `<span class="api-status info">🔄 Fetching data from ${sanitizeHTML(deviceName)}...</span>`;
 
-                // Fetch recent data
-                const endTime = Math.floor(Date.now() / 1000);
-                const startTime = endTime - (SYNC_DAYS * 24 * 60 * 60);
+                // Fetch data for the selected range, split into 7-day chunks
+                // to avoid undocumented API limits on total records per query
+                const overallEnd = Math.floor(Date.now() / 1000);
+                const syncRange = document.getElementById('syncRange').value;
+                const syncDays = parseInt(syncRange, 10);
+                const overallStart = overallEnd - (syncDays * 24 * 60 * 60);
 
-                // Fetch with pagination and status updates
-                const historyData = await getDeviceHistory(deviceMac, startTime, endTime, (statusMsg) => {
-                    statusEl.innerHTML = `<span class="api-status info">${statusMsg}</span>`;
-                });
+                const CHUNK_DAYS = 7;
+                const CHUNK_SECONDS = CHUNK_DAYS * 24 * 60 * 60;
+                let allRecords = [];
+                let chunkStart = overallStart;
+
+                while (chunkStart < overallEnd) {
+                    if (syncAbortController.signal?.aborted) break;
+
+                    const chunkEnd = Math.min(chunkStart + CHUNK_SECONDS, overallEnd);
+                    const totalDays = Math.ceil((overallEnd - overallStart) / 86400);
+                    const doneDays = Math.ceil((chunkStart - overallStart) / 86400);
+                    const chunkLabel = `day ${doneDays + 1}–${Math.min(doneDays + CHUNK_DAYS, totalDays)} of ${totalDays}`;
+                    const chunkResult = await getDeviceHistory(deviceMac, chunkStart, chunkEnd, (statusMsg) => {
+                        statusEl.innerHTML = `<span class="api-status info">🔄 Fetching ${chunkLabel}... ${statusMsg}</span>`;
+                    }, syncAbortController.signal);
+
+                    if (chunkResult.data && chunkResult.data.length > 0) {
+                        allRecords = allRecords.concat(chunkResult.data);
+                        statusEl.innerHTML = `<span class="api-status info">🔄 Fetching data... ${allRecords.length} records so far</span>`;
+                    }
+
+                    if (chunkResult.aborted) break;
+                    chunkStart = chunkEnd;
+                }
+
+                const historyData = {
+                    total: allRecords.length,
+                    data: allRecords,
+                    aborted: syncAbortController.signal?.aborted || false
+                };
 
                 // Transform API data to match our format
                 apiData = transformApiData(historyData.data || []);
@@ -1632,10 +1703,20 @@
                 // Display the synced data
                 displayApiData(apiData);
 
-                statusEl.innerHTML = `<span class="api-status success">✓ Synced ${apiData.length} records from ${sanitizeHTML(device.info?.name || 'device')}</span>`;
+                if (historyData.aborted) {
+                    statusEl.innerHTML = `<span class="api-status info">⚠️ Sync stopped — showing ${apiData.length} records fetched so far</span>`;
+                } else {
+                    statusEl.innerHTML = `<span class="api-status success">✓ Synced ${apiData.length} records from ${sanitizeHTML(device.info?.name || 'device')}</span>`;
+                }
                 document.getElementById('exportApiDataBtn').disabled = false;
 
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    // User cancelled — nothing to show, handled above if partial data exists
+                    statusEl.innerHTML = '<span class="api-status info">Sync cancelled</span>';
+                    return;
+                }
+
                 let errorMessage = error.message || 'Unknown error';
 
                 // Detect CORS or network errors
@@ -1663,6 +1744,8 @@
             } finally {
                 syncBtn.classList.remove('syncing');
                 syncBtn.disabled = false;
+                stopBtn.style.display = 'none';
+                syncAbortController = null;
             }
         }
 
@@ -1752,7 +1835,7 @@
                     }).join(',');
                 });
 
-                const csv = [csvHeaders, ...csvRows].join('\n');
+                const csv = '\uFEFF' + [csvHeaders, ...csvRows].join('\n');
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
@@ -1855,6 +1938,15 @@
             syncFromDeviceBtn.addEventListener('click', syncFromDevice);
         }
 
+        const stopSyncBtn = document.getElementById('stopSync');
+        if (stopSyncBtn) {
+            stopSyncBtn.addEventListener('click', () => {
+                if (syncAbortController) {
+                    syncAbortController.abort();
+                }
+            });
+        }
+
         const exportApiDataBtn = document.getElementById('exportApiDataBtn');
         if (exportApiDataBtn) {
             exportApiDataBtn.addEventListener('click', exportApiData);
@@ -1867,13 +1959,21 @@
          * Processes an uploaded Excel file and initializes all visualizations
          */
         function processFile(file) {
-            showLoading('Processing Excel file...');
+            showLoading('Processing file...');
+
+            const isCsv = file.name?.toLowerCase().endsWith('.csv') ||
+                          file.type === 'text/csv';
 
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    let workbook;
+                    if (isCsv) {
+                        workbook = XLSX.read(e.target.result, { type: 'string' });
+                    } else {
+                        const data = new Uint8Array(e.target.result);
+                        workbook = XLSX.read(data, { type: 'array' });
+                    }
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
@@ -1923,7 +2023,11 @@
                     console.error('File processing error:', error);
                 }
             };
-            reader.readAsArrayBuffer(file);
+            if (isCsv) {
+                reader.readAsText(file, 'UTF-8');
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
         }
 
         /**
@@ -1943,8 +2047,13 @@
                 const minDate = dates.reduce((min, d) => d < min ? d : min);
                 const maxDate = dates.reduce((max, d) => d > max ? d : max);
 
-                // Format as YYYY-MM-DD for input[type="date"]
-                const formatDate = (d) => d.toISOString().split('T')[0];
+                // Format as YYYY-MM-DD for input[type="date"] using local time
+                const formatDate = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                };
 
                 dateFromFilter.value = formatDate(minDate);
                 dateToFilter.value = formatDate(maxDate);
