@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Air Quality Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
     <style>
         * {
             margin: 0;
@@ -496,6 +496,161 @@
             color: #000;
         }
 
+        .api-settings {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .api-settings h3 {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #000;
+        }
+
+        .api-settings-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .api-settings .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .api-settings label {
+            font-size: 0.85em;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .api-settings input {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95em;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        .api-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .api-actions-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: #fff;
+            border-color: #dc2626;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
+        }
+
+        .api-security-note {
+            font-size: 0.8em;
+            color: #92400e;
+            margin: 4px 0 0 0;
+        }
+
+        .btn-success {
+            background: #16a34a;
+            color: #fff;
+            border-color: #16a34a;
+        }
+
+        .btn-success:hover {
+            background: #15803d;
+            border-color: #15803d;
+        }
+
+        .api-status {
+            font-size: 0.85em;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .api-status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .api-status.error {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .api-status.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .sync-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sync-button.syncing {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .api-info-box {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 0.85em;
+        }
+
+        .api-info-box strong {
+            color: #1e40af;
+        }
+
+        .api-info-box ol,
+        .api-info-box ul {
+            margin: 8px 0 0 20px;
+            color: #1e3a8a;
+            line-height: 1.6;
+        }
+
+        .api-info-box a {
+            color: #1e40af;
+            text-decoration: underline;
+        }
+
+
+
+        @media (max-width: 768px) {
+            .api-settings-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .pagination {
             display: flex;
             justify-content: center;
@@ -584,16 +739,62 @@
     <div class="container">
         <div class="header">
             <h1>Air Quality Dashboard</h1>
-            <p class="">for Qingping Air Monitor 2</p>
+            <p>for Qingping Air Monitor 2</p>
         </div>
 
         <div class="controls">
+            <div class="api-settings" id="apiSettings">
+                <h3>Qingping API Settings</h3>
+                <div class="api-info-box">
+                    <strong>📘 How to get API credentials:</strong>
+                    <ol>
+                        <li>Register at <a href="https://developer.qingping.co/" target="_blank">developer.qingping.co</a></li>
+                        <li>Add your device in the Qingping+ mobile app first</li>
+                        <li>Go to <a href="https://developer.qingping.co/main/oauthApi" target="_blank">OAuth API Console</a> (NOT IoT API)</li>
+                        <li>Click "Create Application" to get <strong>App Key</strong> and <strong>App Secret</strong></li>
+                        <li>Make sure your account email is verified</li>
+                    </ol>
+                </div>
+                <div class="api-settings-content">
+                    <div class="form-group">
+                        <label for="apiKey">API Key (Client ID)</label>
+                        <input type="text" id="apiKey" placeholder="Your API Key" aria-label="Qingping API Key">
+                    </div>
+                    <div class="form-group">
+                        <label for="apiSecret">API Secret (Client Secret)</label>
+                        <input type="password" id="apiSecret" placeholder="Your API Secret" aria-label="Qingping API Secret">
+                    </div>
+                </div>
+                <div class="api-actions">
+                    <div class="api-actions-row">
+                        <button class="btn btn-primary" id="saveApiSettings" aria-label="Save API credentials">Save Credentials</button>
+                        <button class="btn" id="testApiAuth" aria-label="Test API authentication" disabled>Test Auth</button>
+                        <button class="btn btn-danger" id="clearApiCredentials" aria-label="Clear saved credentials" style="display: none;">Clear Credentials</button>
+                    </div>
+                    <p class="api-security-note">Credentials are stored in your browser's localStorage. Do not use on shared or public computers.</p>
+                    <div class="api-actions-row">
+                        <select id="syncRange" aria-label="Data range to sync">
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <button class="btn btn-success sync-button" id="syncFromDevice" aria-label="Sync data from Qingping device" disabled>
+                            <span>🔄</span> Sync from Device
+                        </button>
+                        <button class="btn btn-danger" id="stopSync" aria-label="Stop syncing" style="display: none;">Stop</button>
+                        <button class="btn" id="exportApiDataBtn" aria-label="Export synced data to CSV" disabled>Export Synced Data</button>
+                    </div>
+                    <div id="apiStatus"></div>
+                </div>
+            </div>
+
             <div class="upload-section">
                 <div class="file-input-wrapper">
-                    <div class="file-input-button">Choose Excel File or Drop Here</div>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls">
+                    <div class="file-input-button">Choose File or Drop Here</div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
                 </div>
                 <span id="fileName" style="margin-left: 15px; color: #666;"></span>
+                <button class="btn" id="toggleApiSettings" style="margin-left: 12px;" aria-label="Toggle API settings">⚙️ API Settings</button>
             </div>
 
             <div class="filters" id="filters" style="display: none;">
@@ -1064,7 +1265,12 @@
             if (dates.length > 0) {
                 const minDate = dates.reduce((min, d) => d < min ? d : min);
                 const maxDate = dates.reduce((max, d) => d > max ? d : max);
-                const formatDate = (d) => d.toISOString().split('T')[0];
+                const formatDate = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                };
 
                 dateFromFilter.value = formatDate(minDate);
                 dateToFilter.value = formatDate(maxDate);
@@ -1080,7 +1286,12 @@
             const dateFromFilter = document.getElementById('dateFromFilter');
             const dateToFilter = document.getElementById('dateToFilter');
             const now = new Date();
-            const formatDate = (d) => d.toISOString().split('T')[0];
+            const formatDate = (d) => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
 
             let fromDate, toDate;
 
@@ -1112,6 +1323,564 @@
             dateFromFilter.value = formatDate(fromDate);
             dateToFilter.value = formatDate(toDate);
             applyFilters();
+        }
+
+        // ============================================================================
+        // Qingping API Integration
+        // ============================================================================
+
+        let apiData = null;  // Store synced data separately
+        let accessToken = null;
+        let tokenExpiresAt = 0;  // Timestamp (ms) when the token expires
+        let syncAbortController = null;
+        const STATUS_CLEAR_DELAY = 3000;
+
+        /**
+         * Toggles API settings visibility
+         */
+        function toggleApiSettings() {
+            const apiSettings = document.getElementById('apiSettings');
+            if (apiSettings.style.display === 'none' || !apiSettings.style.display) {
+                apiSettings.style.display = 'block';
+                loadApiCredentials();
+            } else {
+                apiSettings.style.display = 'none';
+            }
+        }
+
+        /**
+         * Loads saved API credentials from localStorage
+         */
+        function loadApiCredentials() {
+            const apiKey = localStorage.getItem('qingping_api_key');
+            const apiSecret = localStorage.getItem('qingping_api_secret');
+
+            if (apiKey) document.getElementById('apiKey').value = apiKey;
+            if (apiSecret) document.getElementById('apiSecret').value = apiSecret;
+
+            const hasCredentials = apiKey && apiSecret;
+            document.getElementById('syncFromDevice').disabled = !hasCredentials;
+            document.getElementById('testApiAuth').disabled = !hasCredentials;
+            document.getElementById('clearApiCredentials').style.display = hasCredentials ? '' : 'none';
+        }
+
+        /**
+         * Saves API credentials to localStorage
+         */
+        function saveApiCredentials() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const apiSecret = document.getElementById('apiSecret').value.trim();
+            const statusEl = document.getElementById('apiStatus');
+
+            if (!apiKey || !apiSecret) {
+                statusEl.innerHTML = '<span class="api-status error">Please enter both API Key and Secret</span>';
+                return;
+            }
+
+            localStorage.setItem('qingping_api_key', apiKey);
+            localStorage.setItem('qingping_api_secret', apiSecret);
+
+            document.getElementById('syncFromDevice').disabled = false;
+            document.getElementById('testApiAuth').disabled = false;
+            document.getElementById('clearApiCredentials').style.display = '';
+            statusEl.innerHTML = '<span class="api-status success">✓ Credentials saved</span>';
+
+            setTimeout(() => {
+                statusEl.innerHTML = '';
+            }, STATUS_CLEAR_DELAY);
+        }
+
+        /**
+         * Clears saved API credentials from localStorage and resets UI
+         */
+        function clearApiCredentials() {
+            localStorage.removeItem('qingping_api_key');
+            localStorage.removeItem('qingping_api_secret');
+            document.getElementById('apiKey').value = '';
+            document.getElementById('apiSecret').value = '';
+            document.getElementById('syncFromDevice').disabled = true;
+            document.getElementById('testApiAuth').disabled = true;
+            document.getElementById('clearApiCredentials').style.display = 'none';
+            accessToken = null;
+            tokenExpiresAt = 0;
+
+            const statusEl = document.getElementById('apiStatus');
+            statusEl.innerHTML = '<span class="api-status success">✓ Credentials cleared</span>';
+            setTimeout(() => { statusEl.innerHTML = ''; }, STATUS_CLEAR_DELAY);
+        }
+
+        /**
+         * Validates credential format before authentication
+         */
+        function validateCredentialFormat(apiKey, apiSecret) {
+            const warnings = [];
+
+            // Check for common issues
+            if (apiKey !== apiKey.trim() || apiSecret !== apiSecret.trim()) {
+                warnings.push('⚠️ Credentials have leading/trailing spaces - they will be trimmed');
+            }
+
+            if (apiKey.includes(' ') || apiSecret.includes(' ')) {
+                warnings.push('⚠️ Credentials contain spaces - this is unusual for API keys');
+            }
+
+            // Check if it looks like an email or username (common mistake)
+            if (apiKey.includes('@') || apiKey.includes('.com')) {
+                warnings.push('❌ API Key looks like an email - please use the App Key from OAuth console');
+            }
+
+            return warnings;
+        }
+
+        /**
+         * Tests API authentication only
+         */
+        async function testApiAuth() {
+            const testBtn = document.getElementById('testApiAuth');
+            const statusEl = document.getElementById('apiStatus');
+
+            try {
+                testBtn.disabled = true;
+
+                const apiKey = localStorage.getItem('qingping_api_key') || '';
+                const apiSecret = localStorage.getItem('qingping_api_secret') || '';
+
+                const warnings = validateCredentialFormat(apiKey, apiSecret);
+                if (warnings.length > 0) {
+                    statusEl.innerHTML = `
+                        <div class="api-status error" style="max-width: 600px; margin-bottom: 12px;">
+                            ${warnings.map(w => sanitizeHTML(w)).join('<br>')}
+                        </div>
+                        <div class="api-status info">🔄 Testing authentication anyway...</div>
+                    `;
+                } else {
+                    statusEl.innerHTML = '<span class="api-status info">🔄 Testing authentication...</span>';
+                }
+
+                // Clear previous token to force new authentication
+                accessToken = null;
+
+                await authenticateQingping();
+
+                statusEl.innerHTML = '<span class="api-status success">✓ Authentication successful! Token received.</span>';
+
+                setTimeout(() => {
+                    statusEl.innerHTML = '';
+                }, STATUS_CLEAR_DELAY);
+
+            } catch (error) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'api-status error';
+                errorDiv.style.cssText = 'white-space: pre-wrap; max-width: 600px;';
+                errorDiv.textContent = '❌ ' + error.message;
+                statusEl.innerHTML = '';
+                statusEl.appendChild(errorDiv);
+            } finally {
+                testBtn.disabled = false;
+            }
+        }
+
+        /**
+         * Authenticates with Qingping OAuth API
+         */
+        async function authenticateQingping() {
+            const apiKey = localStorage.getItem('qingping_api_key');
+            const apiSecret = localStorage.getItem('qingping_api_secret');
+
+            if (!apiKey || !apiSecret) {
+                throw new Error('API credentials not configured');
+            }
+
+            // Trim credentials but don't validate length strictly
+            const trimmedKey = apiKey.trim();
+            const trimmedSecret = apiSecret.trim();
+
+            if (trimmedKey.length === 0 || trimmedSecret.length === 0) {
+                throw new Error('API credentials are empty. Please enter valid credentials.');
+            }
+
+            const tokenUrl = 'https://oauth.cleargrass.com/oauth2/token';
+            const params = new URLSearchParams();
+            params.append('grant_type', 'client_credentials');
+            params.append('scope', 'device_full_access');
+
+            const credentials = btoa(`${trimmedKey}:${trimmedSecret}`);
+
+            const response = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMsg = `Authentication failed: ${response.status}`;
+
+                try {
+                    const errorData = JSON.parse(errorText);
+                    if (errorData.error_description) {
+                        errorMsg += ` - ${errorData.error_description}`;
+                    }
+                } catch (e) {
+                    // Not JSON, ignore
+                }
+
+                if (response.status === 530) {
+                    throw new Error(`API Credentials Invalid (530).\n\nThis usually means:\n• You're using IoT credentials instead of OAuth credentials\n• Your App Key or App Secret has a typo\n• Your account doesn't have API access enabled\n\nPlease:\n1. Go to https://developer.qingping.co/main/oauthApi\n2. Create a new OAuth Application if you haven't\n3. Copy the "App Key" as API Key\n4. Copy the "App Secret" as API Secret\n5. Make sure your account is verified`);
+                } else if (response.status === 401) {
+                    throw new Error(`Unauthorized (401). Your API Key or Secret is incorrect. Please verify you copied them correctly from the OAuth API Console.`);
+                } else if (response.status === 403) {
+                    throw new Error(`Forbidden (403). Your account may not have API access enabled. Check the developer console.`);
+                } else {
+                    throw new Error(errorMsg);
+                }
+            }
+
+            const data = await response.json();
+            accessToken = data.access_token;
+            // Track expiry with 60s safety margin
+            tokenExpiresAt = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
+            return accessToken;
+        }
+
+        /**
+         * Fetches device list from Qingping API
+         */
+        async function getDevices() {
+            if (!accessToken || Date.now() >= tokenExpiresAt) {
+                await authenticateQingping();
+            }
+
+            // Build query parameters - timestamp is required
+            const timestamp = Date.now();
+            const params = new URLSearchParams({
+                timestamp: timestamp.toString()
+            });
+
+            const url = `https://apis.cleargrass.com/v1/apis/devices?${params.toString()}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch devices: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        /**
+         * Fetches historical data for a device with pagination
+         */
+        async function getDeviceHistory(mac, startTime, endTime, statusCallback, signal) {
+            if (!accessToken || Date.now() >= tokenExpiresAt) {
+                await authenticateQingping();
+            }
+
+            let fetchedRecords = [];
+            let offset = 0;
+            const limit = 200;  // Max allowed by API
+            let total = null;
+
+            // Fetch data in batches until we have all records
+            while (total === null || offset < total) {
+                if (signal?.aborted) {
+                    return { total: fetchedRecords.length, data: fetchedRecords, aborted: true };
+                }
+
+                const timestamp = Date.now();
+                const params = new URLSearchParams({
+                    mac: mac,
+                    start_time: startTime.toString(),
+                    end_time: endTime.toString(),
+                    timestamp: timestamp.toString(),
+                    limit: limit.toString(),
+                    offset: offset.toString()
+                });
+
+                const url = `https://apis.cleargrass.com/v1/apis/devices/data?${params.toString()}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    signal: signal
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch device data: ${response.status} ${response.statusText}`);
+                }
+
+                const batch = await response.json();
+
+                // Set total on first request
+                if (total === null) {
+                    total = batch.total || 0;
+                }
+
+                if (batch.data && batch.data.length > 0) {
+                    fetchedRecords = fetchedRecords.concat(batch.data);
+
+                    // Update status if callback provided
+                    if (statusCallback) {
+                        statusCallback(`🔄 Fetching data... ${fetchedRecords.length}/${total} records`);
+                    }
+                }
+
+                // Move to next batch
+                offset += limit;
+
+                // If we got fewer records than the limit, we've reached the end
+                if (!batch.data || batch.data.length < limit) {
+                    break;
+                }
+
+                // Re-check token expiry between batches
+                if (Date.now() >= tokenExpiresAt) {
+                    await authenticateQingping();
+                }
+            }
+
+            return { total: fetchedRecords.length, data: fetchedRecords };
+        }
+
+        /**
+         * Syncs data from Qingping device
+         */
+        async function syncFromDevice() {
+            const syncBtn = document.getElementById('syncFromDevice');
+            const stopBtn = document.getElementById('stopSync');
+            const statusEl = document.getElementById('apiStatus');
+
+            syncAbortController = new AbortController();
+
+            try {
+                // Show loading state
+                syncBtn.classList.add('syncing');
+                syncBtn.disabled = true;
+                stopBtn.style.display = '';
+                statusEl.innerHTML = '<span class="api-status info">🔄 Connecting to Qingping...</span>';
+
+                // Authenticate
+                await authenticateQingping();
+                statusEl.innerHTML = '<span class="api-status info">🔄 Fetching devices...</span>';
+
+                // Get devices
+                const devicesData = await getDevices();
+                if (!devicesData.devices || devicesData.devices.length === 0) {
+                    throw new Error('No devices found. Make sure your Air Monitor is registered in the Qingping+ app.');
+                }
+
+                // Use first device (or let user select)
+                const device = devicesData.devices[0];
+                const deviceName = device.info?.name || 'device';
+                const deviceMac = device.info?.mac || device.mac;
+
+                statusEl.innerHTML = `<span class="api-status info">🔄 Fetching data from ${sanitizeHTML(deviceName)}...</span>`;
+
+                // Fetch data for the selected range, split into 7-day chunks
+                // to avoid undocumented API limits on total records per query
+                const overallEnd = Math.floor(Date.now() / 1000);
+                const syncRange = document.getElementById('syncRange').value;
+                const syncDays = parseInt(syncRange, 10);
+                const overallStart = overallEnd - (syncDays * 24 * 60 * 60);
+
+                const CHUNK_DAYS = 7;
+                const CHUNK_SECONDS = CHUNK_DAYS * 24 * 60 * 60;
+                let allRecords = [];
+                let chunkStart = overallStart;
+
+                while (chunkStart < overallEnd) {
+                    if (syncAbortController.signal?.aborted) break;
+
+                    const chunkEnd = Math.min(chunkStart + CHUNK_SECONDS, overallEnd);
+                    const totalDays = Math.ceil((overallEnd - overallStart) / 86400);
+                    const doneDays = Math.ceil((chunkStart - overallStart) / 86400);
+                    const chunkLabel = `day ${doneDays + 1}–${Math.min(doneDays + CHUNK_DAYS, totalDays)} of ${totalDays}`;
+                    const chunkResult = await getDeviceHistory(deviceMac, chunkStart, chunkEnd, (statusMsg) => {
+                        statusEl.innerHTML = `<span class="api-status info">🔄 Fetching ${chunkLabel}... ${statusMsg}</span>`;
+                    }, syncAbortController.signal);
+
+                    if (chunkResult.data && chunkResult.data.length > 0) {
+                        allRecords = allRecords.concat(chunkResult.data);
+                        statusEl.innerHTML = `<span class="api-status info">🔄 Fetching data... ${allRecords.length} records so far</span>`;
+                    }
+
+                    if (chunkResult.aborted) break;
+                    chunkStart = chunkEnd;
+                }
+
+                const historyData = {
+                    total: allRecords.length,
+                    data: allRecords,
+                    aborted: syncAbortController.signal?.aborted || false
+                };
+
+                // Transform API data to match our format
+                apiData = transformApiData(historyData.data || []);
+                if (apiData.length === 0) {
+                    throw new Error('No historical data available from device');
+                }
+
+                // Display the synced data
+                displayApiData(apiData);
+
+                if (historyData.aborted) {
+                    statusEl.innerHTML = `<span class="api-status info">⚠️ Sync stopped — showing ${apiData.length} records fetched so far</span>`;
+                } else {
+                    statusEl.innerHTML = `<span class="api-status success">✓ Synced ${apiData.length} records from ${sanitizeHTML(device.info?.name || 'device')}</span>`;
+                }
+                document.getElementById('exportApiDataBtn').disabled = false;
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    // User cancelled — nothing to show, handled above if partial data exists
+                    statusEl.innerHTML = '<span class="api-status info">Sync cancelled</span>';
+                    return;
+                }
+
+                let errorMessage = error.message || 'Unknown error';
+
+                // Detect CORS or network errors
+                if (error.message === 'Load failed' || error.message === 'Failed to fetch' || error.name === 'TypeError') {
+                    errorMessage = 'Network or CORS error detected';
+                    statusEl.innerHTML = `
+                        <div class="api-status error">
+                            ❌ Connection Error<br>
+                            <small style="margin-top: 4px; display: block;">
+                                This is likely a CORS issue. The Qingping API blocks direct browser requests.<br>
+                                <strong>Solution:</strong> Run this page from a local server (e.g. <code>python3 -m http.server 8000</code>).<br>
+                                The API connection will not work on GitHub Pages.
+                            </small>
+                        </div>
+                    `;
+
+                } else {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'api-status error';
+                    errorDiv.style.cssText = 'white-space: pre-wrap; max-width: 600px;';
+                    errorDiv.textContent = '❌ ' + errorMessage;
+                    statusEl.innerHTML = '';
+                    statusEl.appendChild(errorDiv);
+                }
+            } finally {
+                syncBtn.classList.remove('syncing');
+                syncBtn.disabled = false;
+                stopBtn.style.display = 'none';
+                syncAbortController = null;
+            }
+        }
+
+        /**
+         * Transforms Qingping API data to our dashboard format
+         */
+        function transformApiData(apiRecords) {
+            return apiRecords.filter(record => {
+                // Skip records without a valid timestamp
+                return record.timestamp?.value != null;
+            }).map(record => {
+                const timestampValue = record.timestamp.value;
+                const timestamp = new Date(timestampValue * 1000);
+                const timeStr = timestamp.toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }).replace(',', '');
+
+                return {
+                    'Time': timeStr,
+                    'PM2.5(μg/m³)': record.pm25?.value ?? '',
+                    'PM10(μg/m³)': record.pm10?.value ?? '',
+                    'CO₂(ppm)': record.co2?.value ?? '',
+                    'eTVOC': record.tvoc?.value ?? '',
+                    'Temperature(°C)': record.temperature?.value ?? '',
+                    'Humidity(%RH)': record.humidity?.value ?? '',
+                    'Noise(dB)': record.noise?.value ?? ''
+                };
+            });
+        }
+
+        /**
+         * Displays API-synced data in the dashboard
+         */
+        function displayApiData(data) {
+            if (!data || data.length === 0) return;
+
+            // Use the first object keys as headers
+            headers = Object.keys(data[0]);
+            allData = data;
+            filteredData = [...data];
+
+            currentPage = 1;
+            setupChart();
+            setupFilters();
+            setupAqChart();
+            displayStats();
+            displayTable();
+            renderChart();
+
+            loading.style.display = 'none';
+            tableWrapper.style.display = 'block';
+            filters.style.display = 'flex';
+            stats.style.display = 'block';
+            chartContainer.style.display = 'block';
+            aqChartContainer.style.display = 'block';
+            document.getElementById('referenceSection').style.display = 'block';
+            document.getElementById('presetFilters').style.display = 'flex';
+        }
+
+        /**
+         * Exports API-synced data to CSV
+         */
+        function exportApiData() {
+            if (!apiData || apiData.length === 0) {
+                alert('No API data to export. Please sync from device first.');
+                return;
+            }
+
+            try {
+                const csvColumns = Object.keys(apiData[0]);
+                const csvHeaders = csvColumns.join(',');
+
+                const csvRows = apiData.map(row => {
+                    return csvColumns.map(header => {
+                        const value = row[header];
+                        if (value === undefined || value === null) return '';
+                        const stringValue = String(value);
+                        if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                            return `"${stringValue.replace(/"/g, '""')}"`;
+                        }
+                        return stringValue;
+                    }).join(',');
+                });
+
+                const csv = '\uFEFF' + [csvHeaders, ...csvRows].join('\n');
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+
+                link.setAttribute('href', url);
+                link.setAttribute('download', `qingping-synced-data-${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Failed to export data. Please try again.');
+            }
         }
 
         // ============================================================================
@@ -1176,17 +1945,68 @@
             });
         });
 
+        // API Settings buttons
+        const toggleApiSettingsBtn = document.getElementById('toggleApiSettings');
+        if (toggleApiSettingsBtn) {
+            toggleApiSettingsBtn.addEventListener('click', toggleApiSettings);
+        }
+
+        const saveApiSettingsBtn = document.getElementById('saveApiSettings');
+        if (saveApiSettingsBtn) {
+            saveApiSettingsBtn.addEventListener('click', saveApiCredentials);
+        }
+
+        const clearApiCredentialsBtn = document.getElementById('clearApiCredentials');
+        if (clearApiCredentialsBtn) {
+            clearApiCredentialsBtn.addEventListener('click', clearApiCredentials);
+        }
+
+        const testApiAuthBtn = document.getElementById('testApiAuth');
+        if (testApiAuthBtn) {
+            testApiAuthBtn.addEventListener('click', testApiAuth);
+        }
+
+        const syncFromDeviceBtn = document.getElementById('syncFromDevice');
+        if (syncFromDeviceBtn) {
+            syncFromDeviceBtn.addEventListener('click', syncFromDevice);
+        }
+
+        const stopSyncBtn = document.getElementById('stopSync');
+        if (stopSyncBtn) {
+            stopSyncBtn.addEventListener('click', () => {
+                if (syncAbortController) {
+                    syncAbortController.abort();
+                }
+            });
+        }
+
+        const exportApiDataBtn = document.getElementById('exportApiDataBtn');
+        if (exportApiDataBtn) {
+            exportApiDataBtn.addEventListener('click', exportApiData);
+        }
+
+        // Load saved credentials on startup
+        loadApiCredentials();
+
         /**
          * Processes an uploaded Excel file and initializes all visualizations
          */
         function processFile(file) {
-            showLoading('Processing Excel file...');
+            showLoading('Processing file...');
+
+            const isCsv = file.name?.toLowerCase().endsWith('.csv') ||
+                          file.type === 'text/csv';
 
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    let workbook;
+                    if (isCsv) {
+                        workbook = XLSX.read(e.target.result, { type: 'string' });
+                    } else {
+                        const data = new Uint8Array(e.target.result);
+                        workbook = XLSX.read(data, { type: 'array' });
+                    }
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
@@ -1236,7 +2056,11 @@
                     console.error('File processing error:', error);
                 }
             };
-            reader.readAsArrayBuffer(file);
+            if (isCsv) {
+                reader.readAsText(file, 'UTF-8');
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
         }
 
         /**
@@ -1256,8 +2080,13 @@
                 const minDate = dates.reduce((min, d) => d < min ? d : min);
                 const maxDate = dates.reduce((max, d) => d > max ? d : max);
 
-                // Format as YYYY-MM-DD for input[type="date"]
-                const formatDate = (d) => d.toISOString().split('T')[0];
+                // Format as YYYY-MM-DD for input[type="date"] using local time
+                const formatDate = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                };
 
                 dateFromFilter.value = formatDate(minDate);
                 dateToFilter.value = formatDate(maxDate);
@@ -1436,7 +2265,7 @@
 
             aqMetrics.forEach(metric => {
                 const option = document.createElement('option');
-                option.value = sanitizeHTML(metric);
+                option.value = metric;
                 option.textContent = metric;  // textContent is safe from XSS
                 aqMetricSelect.appendChild(option);
             });
